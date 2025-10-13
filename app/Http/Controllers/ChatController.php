@@ -8,6 +8,7 @@ use App\Models\Room;
 use App\Models\RoomUsers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 
 class ChatController extends Controller
 {
@@ -64,7 +65,8 @@ class ChatController extends Controller
             ]);
 
             // ✅ 4. Broadcast the message (optional if you’re using WebSockets)
-            event(new MessageSent($chat));
+            // event(new MessageSent($chat));
+             broadcast(new MessageSent($chat))->toOthers();
 
             // ✅ 5. Return response to AJAX
             return response()->json([
@@ -76,5 +78,37 @@ class ChatController extends Controller
     public function chat($id){
         echo $id;
         return view('chats');
+    }
+
+    public function createGroup(Request $req){
+        $rules = [
+            'groupname' => 'required|string|min:2|max:15',
+            'users' => 'required|array|min:1', // must be an array with at least 2 users
+            'users.*' => 'exists:users,id',    // optional: validate each user ID if needed
+        ];
+
+
+        $validate = Validator::make($req->all(), $rules);
+        if ($validate->fails()) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors($validate);
+        }
+        
+        $newRoom = Room::create([
+            'type' => 'group',
+        ]);
+        $room_id = $newRoom->id;
+        foreach($req->users as $user_id){
+            RoomUsers::insert(['room_id' => $room_id, 'user_id' => $user_id]);
+        }
+        RoomUsers::insert(['room_id' => $room_id, 'user_id' => Auth::user()->id]);
+
+
+        return redirect()->back()->with([
+            'success' => true,
+            'room_id' => $room_id,
+            'group' => true,
+        ]);
     }
 }

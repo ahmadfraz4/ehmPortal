@@ -1,5 +1,13 @@
 {{-- {{ $item }} --}}
 <x-app-layout>
+    <script>
+        @if(session('success'))
+            const roomId = "{{ session('room_id') }}";
+            const isGroup = "{{ session('group') }}";
+            // You can now use these in JS
+            console.log("Room created:", roomId, "Group:", isGroup);
+        @endif
+    </script>
     {{-- <div class="container mx-auto mt-5">
         <div class="pt-5">
             @foreach ($data as $item)
@@ -14,13 +22,23 @@
         
     </div> --}}
 
+    <style>
+        nav{
+            display: none !important;
+        }
+    </style>
+
     
     <div class="flex h-screen">
         <!-- Sidebar (Chat List) -->
-        <div class="w-1/4 bg-white border-r shadow-md flex flex-col">
-            <div class="p-4 border-b">
-                <h2 class="text-xl font-semibold">EHM Portal</h2>
-            </div>
+        <div class="w-1/4 bg-white border-r shadow-md flex flex-col relative">
+            <section class="p-4 border-b flex justify-between items-center">
+                {{-- <h2 class="text-xl font-semibold">EHM Portal</h2> --}}
+                <a href="{{ route('dashboard') }}" class=" inline-block">
+                    <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                </a>
+                <h4>{{ Auth::user()->name }}</h4>
+            </section>
             <div class="overflow-y-auto flex-1">
                 <!-- Example Chat List -->
                 @foreach ($data as $item)
@@ -40,6 +58,12 @@
                     </div>
                 </button> --}}
             </div>
+            <div class=" absolute bottom-2 right-3">
+                <button type="button" data-modal-target="crypto-modal" data-modal-toggle="crypto-modal" class=" bg-purple-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center">
+                    Create Team
+                </button>
+            </div>
+
         </div>
 
         <!-- Chat Window -->
@@ -65,6 +89,8 @@
         </div>
     </div>
 
+    <x-group-modal :data="$data" ></x-group-modal>
+
     <script>
 
         async function openChat(id) {
@@ -86,46 +112,59 @@
             document.querySelector('#chatHeader h2').innerText = username;
             document.getElementById('room_id').value = jData.room_id;
             let html = '';
-            jData.message.chat.forEach(element => {
-                
-                if(element.sender == id){
-                    html += `
-                    <div class="flex justify-start mb-3">
-                        <div class="bg-gray-200 px-4 py-2 rounded-2xl max-w-xs">${element.message}</div>
-                    </div>`;
-                }else{
-                    html += `
-                     <div class="flex justify-end mb-3">
-                        <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl max-w-xs">${element.message}</div>
-                    </div>
-                    `;
-                }
-            });
+            if(Array.isArray(jData?.message?.chat)){
+                jData?.message?.chat.forEach(element => {
+                    
+                    if(element.sender == id){
+                        html += `
+                        <div class="flex justify-start mb-3">
+                            <div class="bg-gray-200 px-4 py-2 rounded-2xl max-w-xs">${element.message}</div>
+                        </div>`;
+                    }else{
+                        html += `
+                        <div class="flex justify-end mb-3">
+                            <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl max-w-xs">${element.message}</div>
+                        </div>
+                        `;
+                    }
+                });
+            }
 
-            if(jData.success){
-                console.log('1');
+            if(jData?.success){
+                // console.log('1');
                 if (window.currentChannel) {
                     // if user opens another chat, leave the old channel
                     window.Echo.leave(`chat.${window.currentChannel}`);
                 }
-
+                let chatBox = document.getElementById('chatMessages');
                 window.currentChannel = jData.room_id;
-                console.log(jData.room_id)
-                window.Echo.channel(`chat.${jData.room_id}`)
+                window.Echo.private(`chat.${jData.room_id}`)
                     .listen('.message.sent', (e) => {
                         // let chatBox = document.getElementById('chatBox');
                         // let newMsg = document.createElement('div');
                         // newMsg.innerHTML = `<b>${e.chat.sender}:</b> ${e.chat.message}`;
                         // chatBox.appendChild(newMsg);
-                        console.log(e.chat.message)
-                        let chatBox = document.getElementById('chatMessages');
+                        // console.log(e.chat.message)
+                        
                         let newMsg = document.createElement('div');
+                        let class_style = 'justify-start';
+                        let class_style2 = 'bg-gray-200';
+                        if(e.chat.sender == {{ Auth::user()->id }}){
+                            class_style = 'justify-end';
+                            class_style2 = 'bg-blue-500 text-white ';
+                        }
                         newMsg.innerHTML = `
-                                <div class="flex justify-start mb-3">
-                                    <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl max-w-xs">${e.chat.message}</div>
+                                <div class="flex ${class_style} mb-3">
+                                    <div class="${class_style2} px-4 py-2 rounded-2xl max-w-xs">${e.chat.message}</div>
                                 </div>`;
                         chatBox.appendChild(newMsg);
+                        setTimeout(() => {
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }, 100);
                 });
+                setTimeout(() => {
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }, 100);
             }
 
             document.querySelector('#chatMessages').innerHTML = html;
@@ -163,11 +202,11 @@
                     if (data.status === 'success') {
                         let chatBox = document.getElementById('chatMessages');
                         let newMsg = document.createElement('div');
-                        newMsg.innerHTML = `
-                                <div class="flex justify-end mb-3">
-                                    <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl max-w-xs">${data.data.message}</div>
-                                </div>`;
-                        chatBox.appendChild(newMsg);
+                        // newMsg.innerHTML = `
+                        //         <div class="flex justify-end mb-3">
+                        //             <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl max-w-xs">${data.data.message}</div>
+                        //         </div>`;
+                        // chatBox.appendChild(newMsg);
 
                         // ✅ Clear the input box
                         document.getElementById('message').value = '';

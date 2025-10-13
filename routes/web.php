@@ -24,7 +24,7 @@ Route::post('chat', [ChatController::class, 'openChat'])->name('open.chat');
 Route::get('room/{id}', [ChatController::class, 'chat'])->name('room.chat');
 // Route::post('/chat/send', [ChatController::class, 'sendChat'])->name('chat.send');
 Route::post('/send-chat', [ChatController::class, 'sendChat'])->middleware('auth')->name('send.chat');
-
+Route::post('/create-group',[ChatController::class, 'createGroup'])->middleware('auth')->name('create.group');
 // Route::middleware('')->get('chat/{id}', [ChatController::class, 'single_chat'])->name('room.user');
 // Route::get()
 // Route::get('users/{id}', function ($id) {
