@@ -19,7 +19,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::get('/users', [UserController::class, 'index'])->name('users.all');
+Route::get('/users', [UserController::class, 'index'])->name('users.all')->middleware('auth');
 Route::post('chat', [ChatController::class, 'openChat'])->name('open.chat');
 Route::get('room/{id}', [ChatController::class, 'chat'])->name('room.chat');
 // Route::post('/chat/send', [ChatController::class, 'sendChat'])->name('chat.send');

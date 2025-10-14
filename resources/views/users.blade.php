@@ -49,6 +49,15 @@
                         </div>
                     </button>  
                 @endforeach
+
+                @foreach ($groups as $item)
+                    <button class="w-full text-left p-4 hover:bg-gray-100 border-b flex items-center space-x-3" onclick="openChat({{ $item->id }})">
+                        <div class="w-10 h-10 bg-gray-300 rounded-full"></div>
+                        <div>
+                            <h3 class="font-medium group group-{{$item->id}}">{{ $item->group_name }}</h3>
+                        </div>
+                    </button>
+                @endforeach
                 
                 {{-- <button class="w-full text-left p-4 hover:bg-gray-100 border-b flex items-center space-x-3" onclick="openChat('Jane Smith')">
                     <div class="w-10 h-10 bg-gray-300 rounded-full"></div>
@@ -95,27 +104,32 @@
 
         async function openChat(id) {
             let token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            let username = document.querySelector(`.username-${id}`).innerText;
+            let username = document.querySelector(`.username-${id}`);
+            let groupname = document.querySelector(`.group-${id}`);
+            let chat_type = 'chat';
+            if(groupname){
+                chat_type = 'group';
+            }else{
+                document.getElementById('receiver_id').value = id;
+            }
             
-            document.getElementById('receiver_id').value = id;
             let response = await fetch(`chat`,{
                 method : 'POST',
                  headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': token
                 },
-                body: JSON.stringify({ id: id })
+                body: JSON.stringify({ id: id, chat_type: chat_type })
             });
             let jData = await response.json();
             // console.log(jData);
 
-            document.querySelector('#chatHeader h2').innerText = username;
+            document.querySelector('#chatHeader h2').innerText = username?.innerText ?? groupname?.innerText;
             document.getElementById('room_id').value = jData.room_id;
             let html = '';
             if(Array.isArray(jData?.message?.chat)){
                 jData?.message?.chat.forEach(element => {
-                    
-                    if(element.sender == id){
+                    if(element.sender != {{Auth::user()->id}}){
                         html += `
                         <div class="flex justify-start mb-3">
                             <div class="bg-gray-200 px-4 py-2 rounded-2xl max-w-xs">${element.message}</div>
@@ -140,12 +154,6 @@
                 window.currentChannel = jData.room_id;
                 window.Echo.private(`chat.${jData.room_id}`)
                     .listen('.message.sent', (e) => {
-                        // let chatBox = document.getElementById('chatBox');
-                        // let newMsg = document.createElement('div');
-                        // newMsg.innerHTML = `<b>${e.chat.sender}:</b> ${e.chat.message}`;
-                        // chatBox.appendChild(newMsg);
-                        // console.log(e.chat.message)
-                        
                         let newMsg = document.createElement('div');
                         let class_style = 'justify-start';
                         let class_style2 = 'bg-gray-200';
@@ -169,7 +177,7 @@
 
             document.querySelector('#chatMessages').innerHTML = html;
             document.querySelector('#message').disabled = false;
-            document.querySelector('button[disabled]').disabled = false;
+            document.querySelector('#sendBtn').disabled = false;
         }
 
 
@@ -183,6 +191,13 @@
 
                 if (!message) return alert('Please type a message.');
 
+                let send_data = {
+                    message, room_id
+                };
+                if (receiver_id) {
+                    send_data.receiver_id = receiver_id;
+                }
+
                 try {
                     let response = await fetch('{{ route("send.chat") }}', {
                         method: 'POST',
@@ -190,11 +205,7 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': token
                         },
-                        body: JSON.stringify({
-                            message,
-                            room_id,
-                            receiver_id
-                        })
+                        body: JSON.stringify(send_data)
                     });
 
                     let data = await response.json();

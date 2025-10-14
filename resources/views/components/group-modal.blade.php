@@ -34,14 +34,16 @@
                         <li>
                             <label for="{{$item->id}}" class="flex cursor-pointer items-center p-3 text-base font-bold text-gray-900 rounded-lg bg-gray-50 hover:bg-gray-100 group hover:shadow dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-white">
                                 <span class="flex-1 ms-3 whitespace-nowrap">{{ $item->name }}</span>
-                                <input type="checkbox" name="users[]" id="{{$item->id}}">
+                                <input type="checkbox" name="users[]" value="{{$item->id}}" id="{{$item->id}}">
                             </label>
                         </li>
                     @endforeach
-                    
+                    @error('users')
+                        <span class="text-red-500 text-sm font-bold">{{ $message }}</span>
+                    @enderror
                 </ul>
                 <div class="flex justify-center">
-                   <button type="button" class=" bg-purple-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center">
+                   <button type="submit" class=" bg-purple-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center">
                         Create
                     </button>
                 </div>

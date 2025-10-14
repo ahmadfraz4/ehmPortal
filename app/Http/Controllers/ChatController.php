@@ -8,6 +8,7 @@ use App\Models\Room;
 use App\Models\RoomUsers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class ChatController extends Controller
@@ -17,50 +18,65 @@ class ChatController extends Controller
         $current_user = Auth::user()->id;
         $other_user_id = $req->id;
 
-        // finding all rooms of user current
-        $rooms = RoomUsers::where('user_id', $current_user)->pluck('room_id');
+        
 
-        // finding if user comming in that room array 
+        if($req->chat_type == 'chat'){
 
-        $existingRoom = RoomUsers::whereIn('room_id', $rooms)->where('user_id', $other_user_id)->select('room_id')->first();
+            // finding all rooms of user current
+            $rooms = RoomUsers::where('user_id', $current_user)->pluck('room_id');
 
-       
-        if (!$existingRoom) {
-            $newRoom = Room::create([
-                'type' => 'chat',
-            ]);
-            $room_id = $newRoom->id;
+            // finding if user comming in that room array 
 
-            // RoomUsers::insertMany(['room_id' => $room_id, 'user_id' => $current_user], ['room_id' => $room_id, 'user_id' => $other_user_id]);
-            RoomUsers::insert([
-                ['room_id' => $room_id, 'user_id' => $current_user],
-                ['room_id' => $room_id, 'user_id' => $other_user_id],
-            ]);
+            $existingRoom = RoomUsers::whereIn('room_id', $rooms)->where(['user_id' => $other_user_id])->select('room_id')->first();
 
-            // return redirect()->route('room.chat', $room_id);
-            return response()->json(['success' => true, 'room_id' => $room_id, 'message' => ['chat' => '']]);
+        
+            if (!$existingRoom) {
+                $newRoom = Room::create([
+                    'type' => 'chat',
+                ]);
+                $room_id = $newRoom->id;
 
+                // RoomUsers::insertMany(['room_id' => $room_id, 'user_id' => $current_user], ['room_id' => $room_id, 'user_id' => $other_user_id]);
+                RoomUsers::insert([
+                    ['room_id' => $room_id, 'user_id' => $current_user],
+                    ['room_id' => $room_id, 'user_id' => $other_user_id],
+                ]);
+
+                // return redirect()->route('room.chat', $room_id);
+                return response()->json(['success' => true, 'room_id' => $room_id, 'message' => ['chat' => '']]);
+
+            }else{
+                $chats = Chat::where('room_id', $existingRoom['room_id'])->whereHas('room', function ($query) {
+                    $query->where('type', 'chat');
+                })->with(['senderUser', 'receiverUser'])->get();
+                return response()->json(['success' => true, 'room_id' => $existingRoom['room_id'], 'message' => ['chat' => $chats]]);
+            }
         }else{
-            $chats = Chat::where('room_id', $existingRoom['room_id'])->with(['senderUser', 'receiverUser'])->get();
-            // return redirect()->route('room.chat', $existingRoom['room_id']);
-            return response()->json(['success' => true, 'room_id' => $existingRoom['room_id'], 'message' => ['chat' => $chats]]);
+            $room = Room::find($req->id);
+            $chats = Chat::where(['room_id' => $req->id])->whereHas('room', function($query){
+                $query->where('type', 'group');
+            })->with(['senderUser'])->get();
+            return response()->json(['success' => true, 'room_id' => $req->id, 'message' => ['chat' => $chats]]);
         }
 
     }
     public function sendChat(Request $req){
           $req->validate([
                 'room_id' => 'required|exists:room,id',
-                'message' => 'required|string|max:5000',
+                'message' => 'required|string|max:5000'
             ]);
 
             // ✅ 2. Get the authenticated user
             $senderId = Auth::id();
 
+            Log::info('Receiver ID:', [$req->receiver_id]);
+
+
             // ✅ 3. Create the chat message
             $chat = Chat::create([
                 'room_id'  => $req->room_id,
                 'sender'   => $senderId,
-                'receiver' => $req->receiver_id,
+                'receiver' => $req->receiver_id ?: null,
                 'message'  => $req->message,
             ]);
 
@@ -94,9 +110,10 @@ class ChatController extends Controller
                 ->withInput()
                 ->withErrors($validate);
         }
-        
+        // dd($validate->fails());
+
         $newRoom = Room::create([
-            'type' => 'group',
+            'type' => 'group', 'group_name' => $req->groupname
         ]);
         $room_id = $newRoom->id;
         foreach($req->users as $user_id){

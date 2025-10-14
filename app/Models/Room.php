@@ -8,8 +8,12 @@ class Room extends Model
 {
     protected $table = 'room';
     protected $fillable = [
-        'type',
+        'type', 'group_name'
     ];
+
+    public function chats(){
+        return $this->hasMany(Chat::class);
+    }
 
     
 }

@@ -20,4 +20,7 @@ class Chat extends Model
     {
         return $this->belongsTo(User::class, 'receiver');
     }
+    public function room(){
+        return $this->belongsTo(Room::class, 'room_id');
+    }
 }
