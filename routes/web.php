@@ -25,6 +25,12 @@ Route::get('room/{id}', [ChatController::class, 'chat'])->name('room.chat');
 // Route::post('/chat/send', [ChatController::class, 'sendChat'])->name('chat.send');
 Route::post('/send-chat', [ChatController::class, 'sendChat'])->middleware('auth')->name('send.chat');
 Route::post('/create-group',[ChatController::class, 'createGroup'])->middleware('auth')->name('create.group');
+Route::post('/leave-group',[ChatController::class, 'leaveGroup'])->middleware('auth')->name('leave.group');
+
+Route::get('/group-btn/{id}', function ($id) {
+    $item = App\Models\Room::find($id);
+    return view('components.group-chat-btn', ['item' => $item]);
+});
 // Route::middleware('')->get('chat/{id}', [ChatController::class, 'single_chat'])->name('room.user');
 // Route::get()
 // Route::get('users/{id}', function ($id) {

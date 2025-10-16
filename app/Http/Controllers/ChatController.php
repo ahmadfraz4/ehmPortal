@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\GroupCreated;
 use App\Events\MessageSent;
 use App\Models\Chat;
 use App\Models\Room;
 use App\Models\RoomUsers;
+use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -119,7 +121,10 @@ class ChatController extends Controller
         foreach($req->users as $user_id){
             RoomUsers::insert(['room_id' => $room_id, 'user_id' => $user_id]);
         }
+
         RoomUsers::insert(['room_id' => $room_id, 'user_id' => Auth::user()->id]);
+        
+        broadcast(new GroupCreated($newRoom, $req->users))->toOthers();
 
 
         return redirect()->back()->with([
@@ -127,5 +132,27 @@ class ChatController extends Controller
             'room_id' => $room_id,
             'group' => true,
         ]);
+    }
+
+    public function leaveGroup(Request $req){
+        $rules = [
+            'room_id' => 'required'
+        ];
+        $is_validate = Validator::make($req->all(), $rules);
+        if($is_validate->failed()){
+            return response()->json(['success' => false, 'message' => 'Room id is required']);
+        }
+
+        if (RoomUsers::where(['room_id' => $req->room_id, 'user_id' => Auth::id()])->exists()) {
+            RoomUsers::where(['room_id' => $req->room_id, 'user_id' => Auth::id()])->delete();
+            $chat = Chat::create([
+                'message' => Auth::user()->name . ' left the group.',
+                'room_id' => $req->room_id
+            ]);
+            broadcast(new MessageSent($chat))->toOthers();
+            return response()->json(['success' => true, 'message' => 'Group Leave Successfully']);
+        }else{
+            return response()->json(['success' => false, 'message' => 'Room not exist for this user']);
+        }
     }
 }

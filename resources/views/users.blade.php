@@ -39,7 +39,7 @@
                 </a>
                 <h4>{{ Auth::user()->name }}</h4>
             </section>
-            <div class="overflow-y-auto flex-1">
+            <div id="chat-column" class="overflow-y-auto flex-1">
                 <!-- Example Chat List -->
                 @foreach ($data as $item)
                     <button class="w-full text-left p-4 hover:bg-gray-100 border-b flex items-center space-x-3" onclick="openChat({{ $item->id }})">
@@ -51,12 +51,7 @@
                 @endforeach
 
                 @foreach ($groups as $item)
-                    <button class="w-full text-left p-4 hover:bg-gray-100 border-b flex items-center space-x-3" onclick="openChat({{ $item->id }})">
-                        <div class="w-10 h-10 bg-gray-300 rounded-full"></div>
-                        <div>
-                            <h3 class="font-medium group group-{{$item->id}}">{{ $item->group_name }}</h3>
-                        </div>
-                    </button>
+                    <x-group-chat-btn :item="$item" ></x-group-chat-btn>
                 @endforeach
                 
                 {{-- <button class="w-full text-left p-4 hover:bg-gray-100 border-b flex items-center space-x-3" onclick="openChat('Jane Smith')">
@@ -129,7 +124,12 @@
             let html = '';
             if(Array.isArray(jData?.message?.chat)){
                 jData?.message?.chat.forEach(element => {
-                    if(element.sender != {{Auth::user()->id}}){
+                    if(!element.sender && !element.receiver){
+                        html += `
+                        <div class="flex justify-center mb-3">
+                            <div class="bg-red-400 text-white  px-4 py-1 rounded-2xl max-w-xs">${element.message}</div>
+                        </div>`;
+                    }else if(element.sender != {{Auth::user()->id}}){
                         html += `
                         <div class="flex justify-start mb-3">
                             <div class="bg-gray-200 px-4 py-2 rounded-2xl max-w-xs">${element.message}</div>
@@ -161,9 +161,13 @@
                             class_style = 'justify-end';
                             class_style2 = 'bg-blue-500 text-white ';
                         }
+                        if(!e.chat.sender && !e.chat.receiver){
+                            class_style = 'justify-center';
+                            class_style2 = 'bg-red-400 text-white py-1';
+                        }
                         newMsg.innerHTML = `
                                 <div class="flex ${class_style} mb-3">
-                                    <div class="${class_style2} px-4 py-2 rounded-2xl max-w-xs">${e.chat.message}</div>
+                                    <div class="py-2 ${class_style2} px-4  rounded-2xl max-w-xs">${e.chat.message}</div>
                                 </div>`;
                         chatBox.appendChild(newMsg);
                         setTimeout(() => {
@@ -180,55 +184,104 @@
             document.querySelector('#sendBtn').disabled = false;
         }
 
+        // window.Echo.private(`chat.${window.userId}`).listen('group.created', (e) => {
+        //     let html = `
+        //         <button class="w-full text-left p-4 hover:bg-gray-100 border-b flex items-center space-x-3" onclick="openChat(${e.group.id})">
+        //             <div class="w-10 h-10 bg-gray-300 rounded-full"></div>
+        //             <div>
+        //                 <h3 class="font-medium group group-20">${e.group.group_name}</h3>
+        //             </div>
+        //         </button>`;
+
+        //     let chat_column = document.querySelector('#chat-column');
+        //     chat_column.insertAdjacentHTML('afterbegin', html);
+        // });
+
+        document.addEventListener("DOMContentLoaded", function() {
+            
+            if (typeof window.Echo !== 'undefined') {
+                window.userId = "{{ Auth::id() }}";
+                window.Echo.private(`user.${window.userId}`)
+                    .listen('.group.created', (e) => {
+                        console.log("New group created", e);
+                        fetch(`/group-btn/${e.group.id}`)
+                        .then(res => res.text())
+                        .then(html => {
+                            document.querySelector('#chat-column').insertAdjacentHTML('beforeend', html);
+                        });
+                    
+                    // document.querySelector('#chat-column').insertAdjacentHTML('afterbegin', html);
+                    
+                });
+                // window.Echo.private(`user.${window.userId}`)
+                // .listen('.group.created', (e) => {
+                //     let html = `
+                //         <button class="w-full text-left p-4 hover:bg-gray-100 border-b flex items-center space-x-3" onclick="openChat(${e.group.id})">
+                //             <div class="w-10 h-10 bg-gray-300 rounded-full"></div>
+                //             <div>
+                //                 <h3 class="font-medium group group-20">${e.group.group_name}</h3>
+                //             </div>
+                //         </button>`;
+                    
+                //     document.querySelector('#chat-column').insertAdjacentHTML('afterbegin', html);
+
+                // });
+            } else {
+                console.error('Echo not initialized yet!');
+            }
+        });
+
+       
+
 
    
 
-            document.getElementById('sendBtn')?.addEventListener('click', async function() {
-                let message = document.getElementById('message').value.trim();
-                let room_id = document.getElementById('room_id').value;
-                let receiver_id = document.getElementById('receiver_id').value;
-                let token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        document.getElementById('sendBtn')?.addEventListener('click', async function() {
+            let message = document.getElementById('message').value.trim();
+            let room_id = document.getElementById('room_id').value;
+            let receiver_id = document.getElementById('receiver_id').value;
+            let token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-                if (!message) return alert('Please type a message.');
+            if (!message) return alert('Please type a message.');
 
-                let send_data = {
-                    message, room_id
-                };
-                if (receiver_id) {
-                    send_data.receiver_id = receiver_id;
+            let send_data = {
+                message, room_id
+            };
+            if (receiver_id) {
+                send_data.receiver_id = receiver_id;
+            }
+
+            try {
+                let response = await fetch('{{ route("send.chat") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify(send_data)
+                });
+
+                let data = await response.json();
+
+                if (data.status === 'success') {
+                    let chatBox = document.getElementById('chatMessages');
+                    let newMsg = document.createElement('div');
+                    // newMsg.innerHTML = `
+                    //         <div class="flex justify-end mb-3">
+                    //             <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl max-w-xs">${data.data.message}</div>
+                    //         </div>`;
+                    // chatBox.appendChild(newMsg);
+
+                    // ✅ Clear the input box
+                    document.getElementById('message').value = '';
+                    // ✅ Append new message to chat box
+                } else {
+                    alert('Failed to send message.');
                 }
-
-                try {
-                    let response = await fetch('{{ route("send.chat") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': token
-                        },
-                        body: JSON.stringify(send_data)
-                    });
-
-                    let data = await response.json();
-
-                    if (data.status === 'success') {
-                        let chatBox = document.getElementById('chatMessages');
-                        let newMsg = document.createElement('div');
-                        // newMsg.innerHTML = `
-                        //         <div class="flex justify-end mb-3">
-                        //             <div class="bg-blue-500 text-white px-4 py-2 rounded-2xl max-w-xs">${data.data.message}</div>
-                        //         </div>`;
-                        // chatBox.appendChild(newMsg);
-
-                        // ✅ Clear the input box
-                        document.getElementById('message').value = '';
-                        // ✅ Append new message to chat box
-                    } else {
-                        alert('Failed to send message.');
-                    }
-                } catch (error) {
-                    console.error('Error sending chat:', error);
-                }
-            });
+            } catch (error) {
+                console.error('Error sending chat:', error);
+            }
+        });
     </script>
 
 </x-app-layout>

@@ -21,3 +21,7 @@ Broadcast::channel('chat.{room_id}', function ($user, $room_id) {
     // return true; // allow all users to listen for now
 
 });
+
+Broadcast::channel('user.{id}', function ($user, $id) {
+    return (int) $user->id === (int) $id;
+});
