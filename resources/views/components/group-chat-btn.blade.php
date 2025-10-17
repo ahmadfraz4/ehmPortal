@@ -24,22 +24,3 @@
         </ul>
     </div>
 </div>
-
-<script>
-
-    async function leaveChannel(room_id){
-        let token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        let response = await fetch("{{ route('leave.group') }}",{
-            method : 'POST',
-                headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': token
-            },
-            body: JSON.stringify({ room_id: room_id })
-        })
-        let jData = await response.json();
-        if(jData.success){
-            window.location.reload();
-        }
-    }
-</script>

@@ -156,10 +156,10 @@
                     .listen('.message.sent', (e) => {
                         let newMsg = document.createElement('div');
                         let class_style = 'justify-start';
-                        let class_style2 = 'bg-gray-200';
+                        let class_style2 = 'bg-gray-200 py-2 ';
                         if(e.chat.sender == {{ Auth::user()->id }}){
                             class_style = 'justify-end';
-                            class_style2 = 'bg-blue-500 text-white ';
+                            class_style2 = 'bg-blue-500 text-white py-2 ';
                         }
                         if(!e.chat.sender && !e.chat.receiver){
                             class_style = 'justify-center';
@@ -167,7 +167,7 @@
                         }
                         newMsg.innerHTML = `
                                 <div class="flex ${class_style} mb-3">
-                                    <div class="py-2 ${class_style2} px-4  rounded-2xl max-w-xs">${e.chat.message}</div>
+                                    <div class="${class_style2} px-4  rounded-2xl max-w-xs">${e.chat.message}</div>
                                 </div>`;
                         chatBox.appendChild(newMsg);
                         setTimeout(() => {
@@ -208,6 +208,15 @@
                         .then(res => res.text())
                         .then(html => {
                             document.querySelector('#chat-column').insertAdjacentHTML('beforeend', html);
+                            // Re-initialize dropdown manually for new content
+                            document.querySelectorAll('[data-dropdown-toggle]').forEach(el => {
+                                el.addEventListener('click', e => {
+                                    e.preventDefault();
+                                    const dropdownId = el.getAttribute('data-dropdown-toggle');
+                                    const dropdown = document.getElementById(dropdownId);
+                                    if (dropdown) dropdown.classList.toggle('hidden');
+                                });
+                            });
                         });
                     
                     // document.querySelector('#chat-column').insertAdjacentHTML('afterbegin', html);
@@ -282,6 +291,21 @@
                 console.error('Error sending chat:', error);
             }
         });
+        async function leaveChannel(room_id){
+                let token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            let response = await fetch("{{ route('leave.group') }}",{
+                method : 'POST',
+                    headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token
+                },
+                body: JSON.stringify({ room_id: room_id })
+            })
+            let jData = await response.json();
+            if(jData.success){
+                window.location.reload();
+            }
+        }
     </script>
 
 </x-app-layout>
