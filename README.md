@@ -2,7 +2,6 @@
 
 Run following commands after clone this repo
 
-
 composer install
 npm install
 
@@ -11,8 +10,6 @@ php artisan key:generate
 php artisan reverb:key
 php artisan migrate
 
-
 npm run dev
 php artisan reverb:start // start websocket server
 php artisan serve
-
